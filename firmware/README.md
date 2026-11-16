@@ -14,3 +14,10 @@
 - Busy 策略首版建议：仅一项 ACTIVE；新 Commit 明确返回 BUSY，手机保留未发送预览并提供重新发送，后续再扩展显式排队。
 - RW612 保留 Control Plane；未来 OLED/LCD 帧渲染/视频解码不得默认由 RW612 单独承担。
 - 固件实现前参考 [ADR-0001](../docs/decisions/ADR-0001-risk-gated-v1.md)；UWB 先独立验证再集成。
+
+## 协议契约
+
+- [MANUAL_COMMIT 请求 Schema v1](protocol/manual-commit-request-v1.schema.json) 定义一次明确 Send 后生成的不可变请求信封。
+- Schema 校验 Transaction/Idempotency ID、Profile 版本、按眼目标与 Asset Hash，并强制 SEQUENCE 提供有限帧数、循环次数和总时长。
+- 重发同一逻辑事务必须复用 `transaction_id` 与 `idempotency_key`；新预览必须创建新事务，不能覆盖 ACTIVE 事务。
+- 当前 Schema 只负责请求信封；ACK / STARTED / LEFT_RESULT / RIGHT_RESULT / COMPLETE / FAIL、持久化 Journal 和传输分片将在后续契约中定义。
