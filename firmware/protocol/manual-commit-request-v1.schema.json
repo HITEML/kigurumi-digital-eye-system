@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/HITEML/kigurumi-digital-eye-system/blob/main/firmware/protocol/manual-commit-request-v1.schema.json",
+  "title": "Kigurumi manual display commit request v1",
+  "description": "Immutable request envelope created only by an explicit user Send action. PreviewState and TrackingState are deliberately not accepted as top-level inputs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "command",
+    "transaction_id",
+    "idempotency_key",
+    "created_at",
+    "head_profile_version",
+    "display_profile_version",
+    "eye_scope",
+    "targets",
+    "execution"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "1.0"
+    },
+    "command": {
+      "const": "COMMIT_STATE"
+    },
+    "transaction_id": {
+      "$ref": "#/$defs/identifier",
+      "description": "Unique logical display transaction. A transport retry must reuse this value."
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/identifier",
+      "description": "Stable deduplication key. A retry of the same logical transaction must reuse this value."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "head_profile_version": {
+      "$ref": "#/$defs/version"
+    },
+    "display_profile_version": {
+      "$ref": "#/$defs/version"
+    },
+    "eye_scope": {
+      "enum": ["LEFT", "RIGHT", "BOTH"]
+    },
+    "targets": {
+      "$ref": "#/$defs/targets"
+    },
+    "execution": {
+      "$ref": "#/$defs/execution"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "eye_scope": {
+            "const": "LEFT"
+          }
+        },
+        "required": ["eye_scope"]
+      },
+      "then": {
+        "properties": {
+          "targets": {
+            "required": ["left"],
+            "not": {
+              "required": ["right"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eye_scope": {
+            "const": "RIGHT"
+          }
+        },
+        "required": ["eye_scope"]
+      },
+      "then": {
+        "properties": {
+          "targets": {
+            "required": ["right"],
+            "not": {
+              "required": ["left"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eye_scope": {
+            "const": "BOTH"
+          }
+        },
+        "required": ["eye_scope"]
+      },
+      "then": {
+        "properties": {
+          "targets": {
+            "required": ["left", "right"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "eye_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_id", "asset_sha256", "state"],
+      "properties": {
+        "asset_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "asset_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "state": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Complete resolved EyeState snapshot for this eye. It is opaque to this envelope schema so the shared EyeState contract can evolve independently.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 2,
+      "properties": {
+        "left": {
+          "$ref": "#/$defs/eye_snapshot"
+        },
+        "right": {
+          "$ref": "#/$defs/eye_snapshot"
+        }
+      }
+    },
+    "execution": {
+      "oneOf": [
+        {
+          "title": "Static display",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "refresh_timeout_ms", "attempt_limit"],
+          "properties": {
+            "kind": {
+              "const": "STATIC"
+            },
+            "refresh_timeout_ms": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "attempt_limit": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "title": "Bounded E-Ink sequence",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "frame_count",
+            "loop_count",
+            "max_duration_ms",
+            "refresh_timeout_ms",
+            "attempt_limit"
+          ],
+          "properties": {
+            "kind": {
+              "const": "SEQUENCE"
+            },
+            "frame_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "loop_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_duration_ms": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "refresh_timeout_ms": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "attempt_limit": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "protocol_version": "1.0",
+      "command": "COMMIT_STATE",
+      "transaction_id": "commit-000132",
+      "idempotency_key": "commit-000132",
+      "created_at": "2026-11-17T09:00:00Z",
+      "head_profile_version": "head-profile-7",
+      "display_profile_version": "epd-proxy-3",
+      "eye_scope": "BOTH",
+      "targets": {
+        "left": {
+          "asset_id": "happy-left",
+          "asset_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "state": {
+            "expression_id": "happy",
+            "gaze_x": 0.4,
+            "gaze_y": -0.2
+          }
+        },
+        "right": {
+          "asset_id": "happy-right",
+          "asset_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "state": {
+            "expression_id": "happy",
+            "gaze_x": 0.4,
+            "gaze_y": -0.2
+          }
+        }
+      },
+      "execution": {
+        "kind": "STATIC",
+        "refresh_timeout_ms": 120000,
+        "attempt_limit": 2
+      }
+    }
+  ]
+}
